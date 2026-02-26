@@ -87,69 +87,80 @@ function App() {
 
   return (
     <div style={styles.app}>
-      {sidebarOpen && (
-        <div style={styles.sidebar}>
-          <button style={styles.newBtn} onClick={createSession}>
-            + New Chat
-          </button>
-
-          {sessions.map((s) => (
-            <div
-              key={s.id}
-              style={{
-                ...styles.sessionItem,
-                background:
-                  currentSessionId === s.id ? "#374151" : "transparent",
-              }}
-            >
-              {renamingId === s.id ? (
-                <input
-                  autoFocus
-                  defaultValue={s.title}
-                  onBlur={(e) =>
-                    renameSession(s.id, e.target.value)
-                  }
-                />
-              ) : (
-                <span onClick={() => loadMessages(s.id)}>
-                  {s.title}
-                </span>
-              )}
-
-              <div>
-                <button
-                  onClick={() => setRenamingId(s.id)}
-                  style={styles.iconBtn}
-                >
-                  ✎
-                </button>
-                <button
-                  onClick={() => deleteSession(s.id)}
-                  style={styles.iconBtn}
-                >
-                  ✕
-                </button>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-
-      <div style={styles.chatArea}>
-        <button
-          style={styles.toggleBtn}
-          onClick={() => setSidebarOpen(!sidebarOpen)}
-        >
-          ☰
+      {/* Sidebar */}
+      <div
+        style={{
+          ...styles.sidebar,
+          transform: sidebarOpen ? "translateX(0)" : "translateX(-100%)",
+        }}
+      >
+        <button style={styles.newBtn} onClick={createSession}>
+          + New Chat
         </button>
+
+        {sessions.map((s) => (
+          <div
+            key={s.id}
+            style={{
+              ...styles.sessionItem,
+              background:
+                currentSessionId === s.id ? "#1f2937" : "transparent",
+            }}
+          >
+            {renamingId === s.id ? (
+              <input
+                autoFocus
+                defaultValue={s.title}
+                style={styles.renameInput}
+                onBlur={(e) => renameSession(s.id, e.target.value)}
+              />
+            ) : (
+              <span
+                onClick={() => loadMessages(s.id)}
+                style={{ flex: 1 }}
+              >
+                {s.title}
+              </span>
+            )}
+
+            <div>
+              <button
+                onClick={() => setRenamingId(s.id)}
+                style={styles.iconBtn}
+              >
+                ✎
+              </button>
+              <button
+                onClick={() => deleteSession(s.id)}
+                style={styles.iconBtn}
+              >
+                ✕
+              </button>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Chat Area */}
+      <div style={styles.chatArea}>
+        <div style={styles.header}>
+          <button
+            style={styles.menuBtn}
+            onClick={() => setSidebarOpen(!sidebarOpen)}
+          >
+            ☰
+          </button>
+        </div>
 
         <div style={styles.messages}>
           {messages.map((msg, i) => (
             <div
               key={i}
               style={{
-                textAlign: msg.role === "USER" ? "right" : "left",
-                marginBottom: 10,
+                display: "flex",
+                justifyContent:
+                  msg.role === "USER" ? "flex-end" : "flex-start",
+                marginBottom: 15,
               }}
             >
               <div
@@ -190,18 +201,109 @@ function App() {
 }
 
 const styles = {
-  app: { display: "flex", height: "100vh", background: "#0f172a", color: "white" },
-  sidebar: { width: 260, background: "#111827", padding: 15, overflowY: "auto" },
-  chatArea: { flex: 1, display: "flex", flexDirection: "column" },
-  newBtn: { width: "100%", padding: 10, background: "#2563eb", border: "none", borderRadius: 6, color: "white" },
-  sessionItem: { display: "flex", justifyContent: "space-between", padding: 8, borderRadius: 6, marginBottom: 6, cursor: "pointer" },
-  iconBtn: { background: "transparent", border: "none", color: "white", cursor: "pointer", marginLeft: 5 },
-  toggleBtn: { background: "transparent", border: "none", color: "white", fontSize: 20, margin: 10, cursor: "pointer" },
-  messages: { flex: 1, padding: 20, overflowY: "auto" },
-  message: { display: "inline-block", padding: 10, borderRadius: 8, maxWidth: "65%" },
-  inputArea: { display: "flex", padding: 15, background: "#111827" },
-  input: { flex: 1, padding: 10, background: "#1f2937", color: "white", border: "none", borderRadius: 6 },
-  sendBtn: { marginLeft: 10, padding: "10px 18px", background: "#2563eb", border: "none", borderRadius: 6, color: "white" },
+  app: {
+    display: "flex",
+    height: "100vh",
+    background: "#0f172a",
+    color: "white",
+    fontFamily: "Arial",
+  },
+  sidebar: {
+    width: 260,
+    background: "#111827",
+    padding: 15,
+    overflowY: "auto",
+    transition: "transform 0.3s ease",
+    position: "absolute",
+    height: "100%",
+    zIndex: 1000,
+  },
+  chatArea: {
+    flex: 1,
+    display: "flex",
+    flexDirection: "column",
+    marginLeft: 0,
+  },
+  header: {
+    height: 60,
+    display: "flex",
+    alignItems: "center",
+    paddingLeft: 20,
+    borderBottom: "1px solid #1f2937",
+  },
+  menuBtn: {
+    background: "transparent",
+    border: "none",
+    color: "white",
+    fontSize: 22,
+    cursor: "pointer",
+  },
+  newBtn: {
+    width: "100%",
+    padding: 10,
+    background: "#2563eb",
+    border: "none",
+    borderRadius: 6,
+    color: "white",
+    marginBottom: 15,
+  },
+  sessionItem: {
+    display: "flex",
+    justifyContent: "space-between",
+    padding: 8,
+    borderRadius: 6,
+    marginBottom: 6,
+    cursor: "pointer",
+  },
+  renameInput: {
+    background: "#1f2937",
+    color: "white",
+    border: "none",
+    borderRadius: 4,
+    padding: 4,
+    width: "100%",
+  },
+  iconBtn: {
+    background: "transparent",
+    border: "none",
+    color: "white",
+    cursor: "pointer",
+    marginLeft: 5,
+  },
+  messages: {
+    flex: 1,
+    padding: 20,
+    overflowY: "auto",
+  },
+  message: {
+    padding: 12,
+    borderRadius: 8,
+    maxWidth: "70%",
+    lineHeight: 1.6,
+    wordWrap: "break-word",
+    whiteSpace: "pre-wrap",
+  },
+  inputArea: {
+    display: "flex",
+    padding: 15,
+    background: "#111827",
+  },
+  input: {
+    flex: 1,
+    padding: 10,
+    background: "#1f2937",
+    color: "white",
+    border: "none",
+    borderRadius: 6,
+  },
+  sendBtn: {
+    marginLeft: 10,
+    padding: "10px 18px",
+    background: "#2563eb",
+    border: "none",
+    borderRadius: 6,
+    color: "white",
+  },
 };
 
 export default App;
