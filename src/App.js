@@ -106,9 +106,16 @@ function App() {
     chatBubble: darkMode ? "#1f2937" : "white",
   };
 
-  return (
-    <div style={{ display: "flex", height: "100vh", background: theme.bg, color: theme.text }}>
-  
+return (
+  <div style={{ display: "flex", height: "100vh", background: theme.bg, color: theme.text }}>
+
+    <style>
+      {`
+        input::placeholder {
+          color: ${darkMode ? "#9ca3af" : "#6b7280"};
+        }
+      `}
+    </style>  
     
       {/* SIDEBAR */}
       <div style={{ width: 260, background: theme.sidebar, padding: 15 }}>
@@ -169,43 +176,74 @@ function App() {
         </div>
       </div>
 
-      {/* MAIN */}
-      <div style={{ flex: 1, display: "flex", flexDirection: "column" }}>
 
-        {/* TOP */}
-        <div style={{ padding: 10, borderBottom: "1px solid gray", display: "flex", justifyContent: "space-between" }}>
-          <h3>AI SaaS</h3>
-          <button onClick={() => setDarkMode(!darkMode)}>
-            {darkMode ? "🌞 Light" : "🌙 Dark"}
-          </button>
-        </div>
 
-        <ChatWindow messages={messages} theme={theme} />
 
-        {/* INPUT */}
-<input
-  value={input}
-  onChange={(e) => setInput(e.target.value)}
-  placeholder="Message..."
-  style={{
-    flex: 1,
-    padding: 12,
-    borderRadius: 8,
-    border: darkMode ? "1px solid #334155" : "1px solid #ccc",
-    background: darkMode ? "#1f2937" : "white",
-    color: darkMode ? "white" : "black",
-    outline: "none"
-  }}
-  onKeyDown={(e) => e.key === "Enter" && sendMessage()}
-/>
+{/* MAIN */}
+<div style={{ flex: 1, display: "flex", flexDirection: "column" }}>
 
-            <button onClick={sendMessage} style={btn}>Send</button>
-          </div>
-        </div>
-      </div>
+  {/* TOP */}
+  <div
+    style={{
+      padding: 10,
+      borderBottom: "1px solid gray",
+      display: "flex",
+      justifyContent: "space-between",
+    }}
+  >
+    <h3>AI SaaS</h3>
+    <button onClick={() => setDarkMode(!darkMode)}>
+      {darkMode ? "🌞 Light" : "🌙 Dark"}
+    </button>
+  </div>
+
+  <ChatWindow messages={messages} theme={theme} />
+
+  {/* INPUT WRAPPER (THIS WAS MISSING) */}
+  <div style={{ padding: 15, borderTop: "1px solid gray" }}>
+    <div style={{ display: "flex" }}>
+
+      <input
+        value={input}
+        onChange={(e) => setInput(e.target.value)}
+        placeholder="Message..."
+        style={{
+          flex: 1,
+          padding: 12,
+          borderRadius: 8,
+          border: darkMode ? "1px solid #334155" : "1px solid #ccc",
+          background: darkMode ? "#1f2937" : "white",
+          color: darkMode ? "white" : "black",
+          outline: "none",
+        }}
+        onKeyDown={(e) => e.key === "Enter" && sendMessage()}
+      />
+
+      <button
+        onClick={sendMessage}
+        style={{
+          marginLeft: 10,
+          padding: "12px 20px",
+          borderRadius: 8,
+          border: "none",
+          background: "#2563eb",
+          color: "white",
+          cursor: "pointer",
+        }}
+      >
+        Send
+      </button>
+
     </div>
-  );
+  </div>
+</div>
+</div>
+
+
+);
 }
+
+
 
 const btn = {
   padding: 10,
