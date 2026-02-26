@@ -1,72 +1,61 @@
-import React, { useState, useEffect, useRef } from "react";
-
-const API = "https://ai-backend-xa12.onrender.com/api/ai";
+import React, { useState, useEffect } from "react";
+import ChatWindow from "./components/ChatWindow";
+import { api } from "./services/api";
 
 function App() {
+  const [sessions, setSessions] = useState([]);
+  const [sessionId, setSessionId] = useState(null);
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState("");
-  const [sessionId, setSessionId] = useState(null);
-  const [sessions, setSessions] = useState([]);
   const [darkMode, setDarkMode] = useState(true);
-  const [sidebarOpen, setSidebarOpen] = useState(true);
-  const bottomRef = useRef(null);
+  const [editingId, setEditingId] = useState(null);
+  const [editTitle, setEditTitle] = useState("");
 
-  /* ---------------- AUTO SCROLL ---------------- */
-  useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
-
-  /* ---------------- LOAD SESSIONS ---------------- */
   useEffect(() => {
     loadSessions();
   }, []);
 
   const loadSessions = async () => {
-    const res = await fetch(`${API}/sessions`);
-    const data = await res.json();
+    const data = await api.getSessions();
     setSessions(data);
   };
 
-  /* ---------------- CREATE SESSION ---------------- */
   const createSession = async () => {
-    const res = await fetch(`${API}/sessions`, { method: "POST" });
-    const data = await res.json();
+    const data = await api.createSession();
     setSessionId(data.id);
-    setMessages([
-      { role: "assistant", content: "How can I help you today?" },
-    ]);
+    setMessages([]);
     loadSessions();
   };
 
-  /* ---------------- LOAD MESSAGES ---------------- */
   const loadMessages = async (id) => {
-    const res = await fetch(`${API}/sessions/${id}`);
-    const data = await res.json();
+    const data = await api.getMessages(id);
 
-    const formatted = data.map((msg) => ({
-      role: msg.role === "USER" ? "user" : "assistant",
-      content: msg.content,
+    const formatted = data.map((m) => ({
+      role: m.role === "USER" ? "user" : "assistant",
+      content: m.content,
     }));
 
     setMessages(formatted);
     setSessionId(id);
   };
 
-  /* ---------------- DELETE SESSION ---------------- */
   const deleteSession = async (id) => {
-    await fetch(`${API}/sessions/${id}`, {
-      method: "DELETE",
-    });
-
+    await api.deleteSession(id);
     if (id === sessionId) {
       setMessages([]);
       setSessionId(null);
     }
-
     loadSessions();
   };
 
-  /* ---------------- SEND MESSAGE ---------------- */
+  const renameSession = async (id) => {
+    await api.renameSession(id, editTitle);
+    setEditingId(null);
+    loadSessions();
+  };
+
+  /* ================= STREAMING ================= */
+
   const sendMessage = async () => {
     if (!input.trim() || !sessionId) return;
 
@@ -78,124 +67,96 @@ function App() {
       { role: "user", content: userMessage },
     ]);
 
-    const response = await fetch(
-      `${API}/chat/${sessionId}`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "text/plain" },
-        body: userMessage,
-      }
-    );
+    // AUTO TITLE if first message
+    if (messages.length === 0) {
+      await api.renameSession(sessionId, userMessage.slice(0, 30));
+      loadSessions();
+    }
 
-    const data = await response.text();
+    const eventSource = api.streamChat(sessionId, userMessage);
 
-    setMessages((prev) => [
-      ...prev,
-      { role: "assistant", content: data },
-    ]);
+    let assistantMessage = "";
 
-    loadSessions();
+    eventSource.onmessage = (event) => {
+      assistantMessage += event.data;
+
+      setMessages((prev) => {
+        const updated = [...prev];
+        if (updated[updated.length - 1]?.role === "assistant") {
+          updated[updated.length - 1].content = assistantMessage;
+        } else {
+          updated.push({
+            role: "assistant",
+            content: assistantMessage,
+          });
+        }
+        return [...updated];
+      });
+    };
+
+    eventSource.onerror = () => {
+      eventSource.close();
+    };
   };
 
-  /* ---------------- THEME COLORS ---------------- */
   const theme = {
-    bg: darkMode ? "#0f172a" : "#f9fafb",
+    bg: darkMode ? "#0f172a" : "#f3f4f6",
     sidebar: darkMode ? "#111827" : "#e5e7eb",
-    chatBg: darkMode ? "#1f2937" : "#ffffff",
     text: darkMode ? "white" : "black",
-    inputBg: darkMode ? "#1f2937" : "#ffffff",
+    chatBubble: darkMode ? "#1f2937" : "white",
   };
 
   return (
     <div style={{ display: "flex", height: "100vh", background: theme.bg, color: theme.text }}>
-
+      
       {/* SIDEBAR */}
-      {sidebarOpen && (
-        <div style={{ width: 260, background: theme.sidebar, padding: 15 }}>
-          <button
-            style={buttonStyle}
-            onClick={createSession}
-          >
-            + New Chat
-          </button>
+      <div style={{ width: 260, background: theme.sidebar, padding: 15 }}>
+        <button style={btn} onClick={createSession}>+ New Chat</button>
 
-          <div style={{ marginTop: 20 }}>
-            {sessions.map((s) => (
-              <div
-                key={s.id}
-                style={{
-                  padding: 10,
-                  borderRadius: 6,
-                  background: sessionId === s.id ? "#2563eb" : theme.chatBg,
-                  marginBottom: 10,
-                  cursor: "pointer",
-                  display: "flex",
-                  justifyContent: "space-between",
-                  alignItems: "center",
-                }}
-              >
-                <span onClick={() => loadMessages(s.id)}>
-                  {s.title}
-                </span>
-                <span
-                  onClick={() => deleteSession(s.id)}
-                  style={{ cursor: "pointer", color: "red" }}
-                >
-                  🗑
-                </span>
-              </div>
-            ))}
-          </div>
+        <div style={{ marginTop: 20 }}>
+          {sessions.map((s) => (
+            <div key={s.id} style={{ marginBottom: 10 }}>
+              
+              {editingId === s.id ? (
+                <div>
+                  <input
+                    value={editTitle}
+                    onChange={(e) => setEditTitle(e.target.value)}
+                  />
+                  <button onClick={() => renameSession(s.id)}>✔</button>
+                </div>
+              ) : (
+                <div style={{ display: "flex", justifyContent: "space-between" }}>
+                  <span onClick={() => loadMessages(s.id)} style={{ cursor: "pointer" }}>
+                    {s.title}
+                  </span>
+                  <div>
+                    <span onClick={() => {
+                      setEditingId(s.id);
+                      setEditTitle(s.title);
+                    }} style={{ cursor: "pointer", marginRight: 8 }}>✏</span>
+                    <span onClick={() => deleteSession(s.id)} style={{ cursor: "pointer", color: "red" }}>🗑</span>
+                  </div>
+                </div>
+              )}
+
+            </div>
+          ))}
         </div>
-      )}
+      </div>
 
-      {/* MAIN AREA */}
+      {/* MAIN */}
       <div style={{ flex: 1, display: "flex", flexDirection: "column" }}>
-        {/* TOP BAR */}
-        <div style={{
-          padding: 10,
-          display: "flex",
-          justifyContent: "space-between",
-          borderBottom: "1px solid gray"
-        }}>
-          <button onClick={() => setSidebarOpen(!sidebarOpen)}>
-            ☰
-          </button>
 
+        {/* TOP */}
+        <div style={{ padding: 10, borderBottom: "1px solid gray", display: "flex", justifyContent: "space-between" }}>
+          <h3>AI SaaS</h3>
           <button onClick={() => setDarkMode(!darkMode)}>
             {darkMode ? "🌞 Light" : "🌙 Dark"}
           </button>
         </div>
 
-        {/* CHAT AREA */}
-        <div style={{ flex: 1, overflowY: "auto", padding: 20 }}>
-          {messages.map((msg, index) => (
-            <div
-              key={index}
-              style={{
-                display: "flex",
-                justifyContent:
-                  msg.role === "user" ? "flex-end" : "flex-start",
-                marginBottom: 15,
-              }}
-            >
-              <div
-                style={{
-                  background:
-                    msg.role === "user"
-                      ? "#2563eb"
-                      : theme.chatBg,
-                  padding: 12,
-                  borderRadius: 10,
-                  maxWidth: "70%",
-                }}
-              >
-                {msg.content}
-              </div>
-            </div>
-          ))}
-          <div ref={bottomRef} />
-        </div>
+        <ChatWindow messages={messages} theme={theme} />
 
         {/* INPUT */}
         <div style={{ padding: 15, borderTop: "1px solid gray" }}>
@@ -203,30 +164,11 @@ function App() {
             <input
               value={input}
               onChange={(e) => setInput(e.target.value)}
-              placeholder="Message ChatGPT..."
-              style={{
-                flex: 1,
-                padding: 12,
-                borderRadius: 8,
-                border: "1px solid gray",
-                background: theme.inputBg,
-                color: theme.text,
-              }}
+              placeholder="Message..."
+              style={{ flex: 1, padding: 12 }}
               onKeyDown={(e) => e.key === "Enter" && sendMessage()}
             />
-            <button
-              onClick={sendMessage}
-              style={{
-                marginLeft: 10,
-                padding: "12px 20px",
-                borderRadius: 8,
-                border: "none",
-                background: "#2563eb",
-                color: "white",
-              }}
-            >
-              Send
-            </button>
+            <button onClick={sendMessage} style={btn}>Send</button>
           </div>
         </div>
       </div>
@@ -234,11 +176,10 @@ function App() {
   );
 }
 
-const buttonStyle = {
-  width: "100%",
-  padding: 12,
-  borderRadius: 8,
+const btn = {
+  padding: 10,
   border: "none",
+  borderRadius: 6,
   background: "#2563eb",
   color: "white",
   cursor: "pointer",
