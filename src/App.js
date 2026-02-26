@@ -8,7 +8,7 @@ function App() {
   const [currentSessionId, setCurrentSessionId] = useState(null);
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState("");
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [sidebarOpen, setSidebarOpen] = useState(window.innerWidth > 768);
   const [renamingId, setRenamingId] = useState(null);
   const bottomRef = useRef(null);
 
@@ -19,6 +19,8 @@ function App() {
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
+
+  const isMobile = window.innerWidth <= 768;
 
   const loadSessions = async () => {
     const res = await fetch(`${API_BASE}/sessions`);
@@ -39,6 +41,7 @@ function App() {
     const data = await res.json();
     setMessages(data);
     setCurrentSessionId(id);
+    if (isMobile) setSidebarOpen(false);
   };
 
   const deleteSession = async (id) => {
@@ -87,11 +90,21 @@ function App() {
 
   return (
     <div style={styles.app}>
+      {/* Overlay (Mobile) */}
+      {sidebarOpen && isMobile && (
+        <div
+          style={styles.overlay}
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
+
       {/* Sidebar */}
       <div
         style={{
           ...styles.sidebar,
-          transform: sidebarOpen ? "translateX(0)" : "translateX(-100%)",
+          transform: sidebarOpen
+            ? "translateX(0)"
+            : "translateX(-100%)",
         }}
       >
         <button style={styles.newBtn} onClick={createSession}>
@@ -104,7 +117,9 @@ function App() {
             style={{
               ...styles.sessionItem,
               background:
-                currentSessionId === s.id ? "#1f2937" : "transparent",
+                currentSessionId === s.id
+                  ? "#2d3748"
+                  : "transparent",
             }}
           >
             {renamingId === s.id ? (
@@ -112,7 +127,9 @@ function App() {
                 autoFocus
                 defaultValue={s.title}
                 style={styles.renameInput}
-                onBlur={(e) => renameSession(s.id, e.target.value)}
+                onBlur={(e) =>
+                  renameSession(s.id, e.target.value)
+                }
               />
             ) : (
               <span
@@ -143,6 +160,7 @@ function App() {
 
       {/* Chat Area */}
       <div style={styles.chatArea}>
+        {/* Header */}
         <div style={styles.header}>
           <button
             style={styles.menuBtn}
@@ -152,6 +170,7 @@ function App() {
           </button>
         </div>
 
+        {/* Messages */}
         <div style={styles.messages}>
           {messages.map((msg, i) => (
             <div
@@ -159,8 +178,10 @@ function App() {
               style={{
                 display: "flex",
                 justifyContent:
-                  msg.role === "USER" ? "flex-end" : "flex-start",
-                marginBottom: 15,
+                  msg.role === "USER"
+                    ? "flex-end"
+                    : "flex-start",
+                marginBottom: 18,
               }}
             >
               <div
@@ -181,17 +202,21 @@ function App() {
           <div ref={bottomRef}></div>
         </div>
 
+        {/* Input */}
         <div style={styles.inputArea}>
           <input
             value={input}
             onChange={(e) => setInput(e.target.value)}
             style={styles.input}
-            placeholder="Type your message..."
+            placeholder="Message ChatGPT..."
             onKeyDown={(e) =>
               e.key === "Enter" && sendMessage()
             }
           />
-          <button style={styles.sendBtn} onClick={sendMessage}>
+          <button
+            style={styles.sendBtn}
+            onClick={sendMessage}
+          >
             Send
           </button>
         </div>
@@ -207,23 +232,36 @@ const styles = {
     background: "#0f172a",
     color: "white",
     fontFamily: "Arial",
+    position: "relative",
   },
+
+  overlay: {
+    position: "fixed",
+    inset: 0,
+    background: "rgba(0,0,0,0.5)",
+    backdropFilter: "blur(4px)",
+    zIndex: 999,
+  },
+
   sidebar: {
     width: 260,
     background: "#111827",
     padding: 15,
     overflowY: "auto",
     transition: "transform 0.3s ease",
-    position: "absolute",
+    position: "fixed",
     height: "100%",
     zIndex: 1000,
   },
+
   chatArea: {
     flex: 1,
     display: "flex",
     flexDirection: "column",
     marginLeft: 0,
+    width: "100%",
   },
+
   header: {
     height: 60,
     display: "flex",
@@ -231,6 +269,7 @@ const styles = {
     paddingLeft: 20,
     borderBottom: "1px solid #1f2937",
   },
+
   menuBtn: {
     background: "transparent",
     border: "none",
@@ -238,6 +277,7 @@ const styles = {
     fontSize: 22,
     cursor: "pointer",
   },
+
   newBtn: {
     width: "100%",
     padding: 10,
@@ -247,6 +287,7 @@ const styles = {
     color: "white",
     marginBottom: 15,
   },
+
   sessionItem: {
     display: "flex",
     justifyContent: "space-between",
@@ -255,6 +296,7 @@ const styles = {
     marginBottom: 6,
     cursor: "pointer",
   },
+
   renameInput: {
     background: "#1f2937",
     color: "white",
@@ -263,6 +305,7 @@ const styles = {
     padding: 4,
     width: "100%",
   },
+
   iconBtn: {
     background: "transparent",
     border: "none",
@@ -270,35 +313,40 @@ const styles = {
     cursor: "pointer",
     marginLeft: 5,
   },
+
   messages: {
     flex: 1,
     padding: 20,
     overflowY: "auto",
   },
+
   message: {
-    padding: 12,
-    borderRadius: 8,
+    padding: 14,
+    borderRadius: 10,
     maxWidth: "70%",
     lineHeight: 1.6,
     wordWrap: "break-word",
     whiteSpace: "pre-wrap",
   },
+
   inputArea: {
     display: "flex",
     padding: 15,
     background: "#111827",
   },
+
   input: {
     flex: 1,
-    padding: 10,
+    padding: 12,
     background: "#1f2937",
     color: "white",
     border: "none",
     borderRadius: 6,
   },
+
   sendBtn: {
     marginLeft: 10,
-    padding: "10px 18px",
+    padding: "12px 18px",
     background: "#2563eb",
     border: "none",
     borderRadius: 6,
