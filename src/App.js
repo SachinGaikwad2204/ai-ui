@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useEffect, useState, useRef } from "react";
 
 const API_URL = "https://ai-backend-xa12.onrender.com/api/ai";
 
@@ -8,67 +8,63 @@ function App() {
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState("");
   const [darkMode, setDarkMode] = useState(true);
-  const [editingId, setEditingId] = useState(null);
-  const [editTitle, setEditTitle] = useState("");
+  const [isTyping, setIsTyping] = useState(false);
+
+  const bottomRef = useRef(null);
 
   const theme = darkMode
     ? {
         bg: "#0f172a",
-        text: "white",
         sidebar: "#111827",
+        text: "#ffffff",
+        assistant: "#1f2937",
         inputBg: "#1f2937",
       }
     : {
-        bg: "#f3f4f6",
-        text: "black",
+        bg: "#f9fafb",
         sidebar: "#e5e7eb",
-        inputBg: "white",
+        text: "#111827",
+        assistant: "#e5e7eb",
+        inputBg: "#ffffff",
       };
 
-  /* =========================
-     LOAD SESSIONS ON START
-  ========================== */
-const fetchSessions = useCallback(async () => {
-  const res = await fetch(`${API_URL}/sessions`);
-  const data = await res.json();
+  /* ===============================
+     AUTO SCROLL
+  =============================== */
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages]);
 
-  if (data.length === 0) {
-    await createSession();
-    return;
-  }
-
-  setSessions(data);
-  setCurrentSessionId(data[0].id);
-  loadMessages(data[0].id);
-}, []);
-
-
-
-
-
-
-
+  /* ===============================
+     LOAD SESSIONS
+  =============================== */
   useEffect(() => {
     fetchSessions();
-  }, [fetchSessions]);
+  }, []);
 
-  /* =========================
-     CREATE SESSION
-  ========================== */
+  const fetchSessions = async () => {
+    const res = await fetch(`${API_URL}/sessions`);
+    const data = await res.json();
+
+    if (data.length === 0) {
+      await createSession();
+      return;
+    }
+
+    setSessions(data);
+    setCurrentSessionId(data[0].id);
+    loadMessages(data[0].id);
+  };
+
   const createSession = async () => {
-    const res = await fetch(`${API_URL}/sessions`, {
-      method: "POST",
-    });
-
+    const res = await fetch(`${API_URL}/sessions`, { method: "POST" });
     const newSession = await res.json();
+
     setSessions((prev) => [newSession, ...prev]);
     setCurrentSessionId(newSession.id);
     setMessages([]);
   };
 
-  /* =========================
-     LOAD MESSAGES
-  ========================== */
   const loadMessages = async (id) => {
     const res = await fetch(`${API_URL}/sessions/${id}`);
     const data = await res.json();
@@ -76,35 +72,25 @@ const fetchSessions = useCallback(async () => {
     setMessages(data);
   };
 
-  /* =========================
-     SEND MESSAGE (STREAMING)
-  ========================== */
+  /* ===============================
+     SEND MESSAGE WITH STREAMING
+  =============================== */
   const sendMessage = async () => {
-    if (!input.trim()) return;
-
-    let sessionId = currentSessionId;
-
-    if (!sessionId) {
-      await createSession();
-      return;
-    }
+    if (!input.trim() || !currentSessionId) return;
 
     const userMessage = { role: "user", content: input };
     setMessages((prev) => [...prev, userMessage]);
     setInput("");
 
-    // Auto title from first message
-    if (messages.length === 0) {
-      renameSessionAuto(sessionId, input.slice(0, 20));
-    }
-
     const eventSource = new EventSource(
-      `${API_URL}/chat/stream/${sessionId}?prompt=${encodeURIComponent(
+      `${API_URL}/chat/stream/${currentSessionId}?prompt=${encodeURIComponent(
         input
       )}`
     );
 
     let aiText = "";
+    setIsTyping(true);
+
     setMessages((prev) => [...prev, { role: "assistant", content: "" }]);
 
     eventSource.onmessage = (event) => {
@@ -121,105 +107,58 @@ const fetchSessions = useCallback(async () => {
     };
 
     eventSource.onerror = () => {
+      setIsTyping(false);
       eventSource.close();
     };
-  };
 
-  /* =========================
-     DELETE SESSION
-  ========================== */
-  const deleteSession = async (id) => {
-    await fetch(`${API_URL}/sessions/${id}`, {
-      method: "DELETE",
+    eventSource.onopen = () => {
+      setIsTyping(true);
+    };
+
+    eventSource.addEventListener("end", () => {
+      setIsTyping(false);
+      eventSource.close();
     });
-
-    const updated = sessions.filter((s) => s.id !== id);
-    setSessions(updated);
-
-    if (updated.length > 0) {
-      setCurrentSessionId(updated[0].id);
-      loadMessages(updated[0].id);
-    } else {
-      setMessages([]);
-      setCurrentSessionId(null);
-    }
   };
-
-  /* =========================
-     RENAME SESSION
-  ========================== */
-  const renameSession = async (id) => {
-    await fetch(`${API_URL}/sessions/${id}/rename`, {
-      method: "PUT",
-      headers: { "Content-Type": "text/plain" },
-      body: editTitle,
-    });
-
-    setEditingId(null);
-    fetchSessions();
-  };
-
-  const renameSessionAuto = async (id, title) => {
-    await fetch(`${API_URL}/sessions/${id}/rename`, {
-      method: "PUT",
-      headers: { "Content-Type": "text/plain" },
-      body: title,
-    });
-
-    fetchSessions();
-  };
-
-  /* =========================
-     UI
-  ========================== */
 
   return (
     <div style={{ display: "flex", height: "100vh", background: theme.bg, color: theme.text }}>
+
       {/* SIDEBAR */}
-      <div style={{ width: 260, background: theme.sidebar, padding: 15 }}>
-        <button style={btn} onClick={createSession}>
+      <div style={{
+        width: 260,
+        background: theme.sidebar,
+        padding: 20,
+        transition: "all 0.3s ease"
+      }}>
+        <button
+          style={styles.newChat}
+          onClick={createSession}
+        >
           + New Chat
         </button>
 
         <div style={{ marginTop: 20 }}>
           {sessions.map((s) => (
-            <div key={s.id} style={{ marginBottom: 10 }}>
-              {editingId === s.id ? (
-                <div>
-                  <input
-                    value={editTitle}
-                    onChange={(e) => setEditTitle(e.target.value)}
-                    style={{ width: "100%", padding: 6 }}
-                  />
-                  <button onClick={() => renameSession(s.id)}>Save</button>
-                </div>
-              ) : (
-                <div style={{ display: "flex", justifyContent: "space-between" }}>
-                  <span
-                    onClick={() => loadMessages(s.id)}
-                    style={{ cursor: "pointer" }}
-                  >
-                    {s.title}
-                  </span>
-                  <div>
-                    <span
-                      onClick={() => {
-                        setEditingId(s.id);
-                        setEditTitle(s.title);
-                      }}
-                      style={{ cursor: "pointer", marginRight: 8 }}
-                    >
-                      ✏
-                    </span>
-                    <span
-                      onClick={() => deleteSession(s.id)}
-                      style={{ cursor: "pointer", color: "red" }}
-                    >
-                      🗑
-                    </span>
-                  </div>
-                </div>
-              )}
+            <div
+              key={s.id}
+              onClick={() => loadMessages(s.id)}
+              style={{
+                padding: 10,
+                borderRadius: 8,
+                marginBottom: 6,
+                cursor: "pointer",
+                transition: "0.2s",
+              }}
+              onMouseEnter={(e) =>
+                (e.currentTarget.style.background =
+                  darkMode ? "#1f2937" : "#d1d5db")
+              }
+              onMouseLeave={(e) =>
+                (e.currentTarget.style.background = "transparent")
+              }
+            >
+              {s.title}
             </div>
           ))}
         </div>
@@ -227,42 +166,57 @@ const fetchSessions = useCallback(async () => {
 
       {/* MAIN */}
       <div style={{ flex: 1, display: "flex", flexDirection: "column" }}>
-        {/* TOP */}
-        <div style={{ padding: 10, borderBottom: "1px solid gray", display: "flex", justifyContent: "space-between" }}>
-          <h3>AI SaaS</h3>
-          <button onClick={() => setDarkMode(!darkMode)}>
+
+        {/* HEADER */}
+        <div style={styles.header}>
+          <h3 style={{ margin: 0 }}>AI SaaS</h3>
+          <button onClick={() => setDarkMode(!darkMode)} style={styles.toggle}>
             {darkMode ? "🌞 Light" : "🌙 Dark"}
           </button>
         </div>
 
-        {/* MESSAGES */}
-        <div style={{ flex: 1, padding: 20, overflowY: "auto" }}>
+        {/* CHAT AREA */}
+        <div style={styles.chatArea}>
           {messages.map((msg, index) => (
             <div
               key={index}
               style={{
-                textAlign: msg.role === "user" ? "right" : "left",
-                marginBottom: 10,
+                display: "flex",
+                justifyContent:
+                  msg.role === "user" ? "flex-end" : "flex-start",
+                marginBottom: 18,
               }}
             >
-              <span
+              <div
                 style={{
-                  padding: 10,
-                  borderRadius: 8,
-                  display: "inline-block",
+                  maxWidth: "70%",
+                  padding: "14px 18px",
+                  borderRadius: 14,
+                  whiteSpace: "pre-wrap",
+                  lineHeight: 1.6,
+                  fontSize: 15,
                   background:
-                    msg.role === "user" ? "#2563eb" : theme.inputBg,
-                  color: msg.role === "user" ? "white" : theme.text,
+                    msg.role === "user"
+                      ? "#2563eb"
+                      : theme.assistant,
+                  color:
+                    msg.role === "user"
+                      ? "white"
+                      : theme.text,
                 }}
               >
                 {msg.content}
-              </span>
+                {isTyping && index === messages.length - 1 && msg.role === "assistant" && (
+                  <span className="cursor">▋</span>
+                )}
+              </div>
             </div>
           ))}
+          <div ref={bottomRef}></div>
         </div>
 
         {/* INPUT */}
-        <div style={{ padding: 15, display: "flex" }}>
+        <div style={styles.inputArea}>
           <input
             value={input}
             onChange={(e) => setInput(e.target.value)}
@@ -270,30 +224,78 @@ const fetchSessions = useCallback(async () => {
             placeholder="Message..."
             style={{
               flex: 1,
-              padding: 12,
-              borderRadius: 8,
-              border: "1px solid #ccc",
+              padding: 14,
+              borderRadius: 10,
+              border: "1px solid #334155",
               background: theme.inputBg,
               color: theme.text,
+              fontSize: 15,
             }}
           />
-          <button onClick={sendMessage} style={btn}>
+          <button onClick={sendMessage} style={styles.send}>
             Send
           </button>
         </div>
       </div>
+
+      <style>{`
+        .cursor {
+          animation: blink 1s infinite;
+          margin-left: 2px;
+        }
+        @keyframes blink {
+          0% { opacity: 1 }
+          50% { opacity: 0 }
+          100% { opacity: 1 }
+        }
+      `}</style>
     </div>
   );
 }
 
-const btn = {
-  marginLeft: 10,
-  padding: "12px 20px",
-  borderRadius: 8,
-  border: "none",
-  background: "#2563eb",
-  color: "white",
-  cursor: "pointer",
+const styles = {
+  header: {
+    padding: "14px 20px",
+    borderBottom: "1px solid #334155",
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  chatArea: {
+    flex: 1,
+    padding: "30px 80px",
+    overflowY: "auto",
+  },
+  inputArea: {
+    padding: 20,
+    display: "flex",
+    borderTop: "1px solid #334155",
+  },
+  send: {
+    marginLeft: 10,
+    padding: "14px 22px",
+    borderRadius: 10,
+    border: "none",
+    background: "#2563eb",
+    color: "white",
+    cursor: "pointer",
+    fontWeight: 500,
+  },
+  newChat: {
+    padding: "12px 18px",
+    borderRadius: 10,
+    border: "none",
+    background: "#2563eb",
+    color: "white",
+    cursor: "pointer",
+    width: "100%",
+  },
+  toggle: {
+    padding: "8px 14px",
+    borderRadius: 8,
+    border: "none",
+    cursor: "pointer",
+  },
 };
 
 export default App;
