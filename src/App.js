@@ -29,8 +29,7 @@ function App() {
       { role: "user", content: input },
       {
         role: "assistant",
-        content:
-          "This is a demo response. Connect your backend here.",
+        content: "This is a demo response. Connect backend here.",
       },
     ]);
 
@@ -39,7 +38,7 @@ function App() {
 
   return (
     <div style={styles.app}>
-      {/* Mobile Overlay */}
+      {/* Overlay (Mobile) */}
       {isMobile && sidebarOpen && (
         <div
           style={styles.overlay}
@@ -56,10 +55,7 @@ function App() {
             : 0,
         }}
       >
-        <button style={styles.newChat}>
-          + New Chat
-        </button>
-
+        <button style={styles.newChatBtn}>+ New Chat</button>
         {Array.from({ length: 8 }).map((_, i) => (
           <div key={i} style={styles.chatItem}>
             New Chat
@@ -67,10 +63,10 @@ function App() {
         ))}
       </div>
 
-      {/* Main Chat Section */}
+      {/* Main Section */}
       <div
         style={{
-          ...styles.chatSection,
+          ...styles.main,
           marginLeft: isMobile ? 0 : 260,
         }}
       >
@@ -78,7 +74,7 @@ function App() {
         <div style={styles.topBar}>
           {isMobile && (
             <button
-              style={styles.menu}
+              style={styles.menuBtn}
               onClick={() =>
                 setSidebarOpen(!sidebarOpen)
               }
@@ -88,9 +84,9 @@ function App() {
           )}
         </div>
 
-        {/* Chat Body */}
-        <div style={styles.chatBody}>
-          <div style={styles.chatContainer}>
+        {/* Chat Area */}
+        <div style={styles.chatArea}>
+          <div style={styles.chatInner}>
             {messages.map((msg, index) => (
               <div
                 key={index}
@@ -115,7 +111,7 @@ function App() {
           </div>
         </div>
 
-        {/* Input Area */}
+        {/* Input Section */}
         <div style={styles.inputSection}>
           <div style={styles.inputWrapper}>
             <input
@@ -148,8 +144,7 @@ const styles = {
     height: "100vh",
     background: "#0f172a",
     color: "white",
-    fontFamily:
-      "system-ui, -apple-system, BlinkMacSystemFont, sans-serif",
+    fontFamily: "system-ui",
   },
 
   sidebar: {
@@ -164,9 +159,9 @@ const styles = {
     zIndex: 1000,
   },
 
-  newChat: {
+  newChatBtn: {
     width: "100%",
-    padding: 10,
+    padding: 12,
     marginBottom: 15,
     background: "#2563eb",
     border: "none",
@@ -183,10 +178,11 @@ const styles = {
     cursor: "pointer",
   },
 
-  chatSection: {
+  main: {
     flex: 1,
     display: "flex",
     flexDirection: "column",
+    height: "100vh",
   },
 
   topBar: {
@@ -194,10 +190,10 @@ const styles = {
     borderBottom: "1px solid #1f2937",
     display: "flex",
     alignItems: "center",
-    paddingLeft: 15,
+    paddingLeft: 20,
   },
 
-  menu: {
+  menuBtn: {
     background: "transparent",
     border: "none",
     fontSize: 22,
@@ -205,17 +201,19 @@ const styles = {
     cursor: "pointer",
   },
 
-  chatBody: {
+  chatArea: {
     flex: 1,
     overflowY: "auto",
     display: "flex",
     justifyContent: "center",
   },
 
-  chatContainer: {
+  chatInner: {
     width: "100%",
     maxWidth: 800,
     padding: "30px 20px",
+    display: "flex",
+    flexDirection: "column",
   },
 
   userRow: {
