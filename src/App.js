@@ -1,194 +1,229 @@
 import React, { useState, useEffect, useRef } from "react";
 
+const API = "https://ai-backend-xa12.onrender.com/api/ai";
+
 function App() {
-  const [messages, setMessages] = useState([
-    { role: "assistant", content: "How can I help you today?" },
-  ]);
-
+  const [messages, setMessages] = useState([]);
   const [input, setInput] = useState("");
-  const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
-  const [sidebarOpen, setSidebarOpen] = useState(false);
-  const bottomRef = useRef(null);
   const [sessionId, setSessionId] = useState(null);
+  const [sessions, setSessions] = useState([]);
+  const [darkMode, setDarkMode] = useState(true);
+  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const bottomRef = useRef(null);
 
-  // Detect screen size
-  useEffect(() => {
-    const handleResize = () =>
-      setIsMobile(window.innerWidth < 768);
-    window.addEventListener("resize", handleResize);
-    return () => window.removeEventListener("resize", handleResize);
-  }, []);
-
-  // Auto scroll
+  /* ---------------- AUTO SCROLL ---------------- */
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  // 🔥 REAL BACKEND CALL
-const createSession = async () => {
-  const res = await fetch(
-    "https://ai-backend-xa12.onrender.com/api/ai/sessions",
-    { method: "POST" }
-  );
-  const data = await res.json();
-  setSessionId(data.id);
-  return data.id;
-};
+  /* ---------------- LOAD SESSIONS ---------------- */
+  useEffect(() => {
+    loadSessions();
+  }, []);
 
-const sendMessage = async () => {
-  if (!input.trim()) return;
+  const loadSessions = async () => {
+    const res = await fetch(`${API}/sessions`);
+    const data = await res.json();
+    setSessions(data);
+  };
 
-  let currentSessionId = sessionId;
+  /* ---------------- CREATE SESSION ---------------- */
+  const createSession = async () => {
+    const res = await fetch(`${API}/sessions`, { method: "POST" });
+    const data = await res.json();
+    setSessionId(data.id);
+    setMessages([
+      { role: "assistant", content: "How can I help you today?" },
+    ]);
+    loadSessions();
+  };
 
-  if (!currentSessionId) {
-    currentSessionId = await createSession();
-  }
+  /* ---------------- LOAD MESSAGES ---------------- */
+  const loadMessages = async (id) => {
+    const res = await fetch(`${API}/sessions/${id}`);
+    const data = await res.json();
 
-  const userMessage = input;
-  setInput("");
+    const formatted = data.map((msg) => ({
+      role: msg.role === "USER" ? "user" : "assistant",
+      content: msg.content,
+    }));
 
-  setMessages(prev => [
-    ...prev,
-    { role: "user", content: userMessage }
-  ]);
+    setMessages(formatted);
+    setSessionId(id);
+  };
 
-  try {
+  /* ---------------- DELETE SESSION ---------------- */
+  const deleteSession = async (id) => {
+    await fetch(`${API}/sessions/${id}`, {
+      method: "DELETE",
+    });
+
+    if (id === sessionId) {
+      setMessages([]);
+      setSessionId(null);
+    }
+
+    loadSessions();
+  };
+
+  /* ---------------- SEND MESSAGE ---------------- */
+  const sendMessage = async () => {
+    if (!input.trim() || !sessionId) return;
+
+    const userMessage = input;
+    setInput("");
+
+    setMessages((prev) => [
+      ...prev,
+      { role: "user", content: userMessage },
+    ]);
+
     const response = await fetch(
-      `https://ai-backend-xa12.onrender.com/api/ai/chat/${currentSessionId}`,
+      `${API}/chat/${sessionId}`,
       {
         method: "POST",
-        headers: {
-          "Content-Type": "text/plain",
-        },
+        headers: { "Content-Type": "text/plain" },
         body: userMessage,
       }
     );
 
-    if (!response.ok) {
-      throw new Error("Server error");
-    }
-
     const data = await response.text();
 
-    setMessages(prev => [
+    setMessages((prev) => [
       ...prev,
-      { role: "assistant", content: data }
+      { role: "assistant", content: data },
     ]);
 
-  } catch (error) {
-    setMessages(prev => [
-      ...prev,
-      { role: "assistant", content: "Backend connection failed." }
-    ]);
-  }
-};
+    loadSessions();
+  };
 
-
-
-
-
-
-
-
-
+  /* ---------------- THEME COLORS ---------------- */
+  const theme = {
+    bg: darkMode ? "#0f172a" : "#f9fafb",
+    sidebar: darkMode ? "#111827" : "#e5e7eb",
+    chatBg: darkMode ? "#1f2937" : "#ffffff",
+    text: darkMode ? "white" : "black",
+    inputBg: darkMode ? "#1f2937" : "#ffffff",
+  };
 
   return (
-    <div style={styles.app}>
-      {/* Overlay (Mobile) */}
-      {isMobile && sidebarOpen && (
-        <div
-          style={styles.overlay}
-          onClick={() => setSidebarOpen(false)}
-        />
-      )}
+    <div style={{ display: "flex", height: "100vh", background: theme.bg, color: theme.text }}>
 
-      {/* Sidebar */}
-      <div
-        style={{
-          ...styles.sidebar,
-          left: isMobile
-            ? sidebarOpen
-              ? 0
-              : -260
-            : 0,
-        }}
-      >
-        <button style={styles.newChatBtn}>
-          + New Chat
-        </button>
+      {/* SIDEBAR */}
+      {sidebarOpen && (
+        <div style={{ width: 260, background: theme.sidebar, padding: 15 }}>
+          <button
+            style={buttonStyle}
+            onClick={createSession}
+          >
+            + New Chat
+          </button>
 
-        {Array.from({ length: 8 }).map((_, i) => (
-          <div key={i} style={styles.chatItem}>
-            New Chat
-          </div>
-        ))}
-      </div>
-
-      {/* Main Section */}
-      <div
-        style={{
-          ...styles.main,
-          marginLeft: isMobile ? 0 : 260,
-        }}
-      >
-        {/* Top Bar */}
-        <div style={styles.topBar}>
-          {isMobile && (
-            <button
-              style={styles.menuBtn}
-              onClick={() =>
-                setSidebarOpen(!sidebarOpen)
-              }
-            >
-              ☰
-            </button>
-          )}
-        </div>
-
-        {/* Chat Area */}
-        <div style={styles.chatArea}>
-          <div style={styles.chatInner}>
-            {messages.map((msg, index) => (
+          <div style={{ marginTop: 20 }}>
+            {sessions.map((s) => (
               <div
-                key={index}
-                style={
-                  msg.role === "user"
-                    ? styles.userRow
-                    : styles.botRow
-                }
+                key={s.id}
+                style={{
+                  padding: 10,
+                  borderRadius: 6,
+                  background: sessionId === s.id ? "#2563eb" : theme.chatBg,
+                  marginBottom: 10,
+                  cursor: "pointer",
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                }}
               >
-                <div
-                  style={
-                    msg.role === "user"
-                      ? styles.userBubble
-                      : styles.botBubble
-                  }
+                <span onClick={() => loadMessages(s.id)}>
+                  {s.title}
+                </span>
+                <span
+                  onClick={() => deleteSession(s.id)}
+                  style={{ cursor: "pointer", color: "red" }}
                 >
-                  {msg.content}
-                </div>
+                  🗑
+                </span>
               </div>
             ))}
-            <div ref={bottomRef} />
           </div>
         </div>
+      )}
 
-        {/* Input Section */}
-        <div style={styles.inputSection}>
-          <div style={styles.inputWrapper}>
+      {/* MAIN AREA */}
+      <div style={{ flex: 1, display: "flex", flexDirection: "column" }}>
+        {/* TOP BAR */}
+        <div style={{
+          padding: 10,
+          display: "flex",
+          justifyContent: "space-between",
+          borderBottom: "1px solid gray"
+        }}>
+          <button onClick={() => setSidebarOpen(!sidebarOpen)}>
+            ☰
+          </button>
+
+          <button onClick={() => setDarkMode(!darkMode)}>
+            {darkMode ? "🌞 Light" : "🌙 Dark"}
+          </button>
+        </div>
+
+        {/* CHAT AREA */}
+        <div style={{ flex: 1, overflowY: "auto", padding: 20 }}>
+          {messages.map((msg, index) => (
+            <div
+              key={index}
+              style={{
+                display: "flex",
+                justifyContent:
+                  msg.role === "user" ? "flex-end" : "flex-start",
+                marginBottom: 15,
+              }}
+            >
+              <div
+                style={{
+                  background:
+                    msg.role === "user"
+                      ? "#2563eb"
+                      : theme.chatBg,
+                  padding: 12,
+                  borderRadius: 10,
+                  maxWidth: "70%",
+                }}
+              >
+                {msg.content}
+              </div>
+            </div>
+          ))}
+          <div ref={bottomRef} />
+        </div>
+
+        {/* INPUT */}
+        <div style={{ padding: 15, borderTop: "1px solid gray" }}>
+          <div style={{ display: "flex" }}>
             <input
-              style={styles.input}
               value={input}
-              onChange={(e) =>
-                setInput(e.target.value)
-              }
+              onChange={(e) => setInput(e.target.value)}
               placeholder="Message ChatGPT..."
-              onKeyDown={(e) =>
-                e.key === "Enter" && sendMessage()
-              }
+              style={{
+                flex: 1,
+                padding: 12,
+                borderRadius: 8,
+                border: "1px solid gray",
+                background: theme.inputBg,
+                color: theme.text,
+              }}
+              onKeyDown={(e) => e.key === "Enter" && sendMessage()}
             />
             <button
-              style={styles.sendBtn}
               onClick={sendMessage}
+              style={{
+                marginLeft: 10,
+                padding: "12px 20px",
+                borderRadius: 8,
+                border: "none",
+                background: "#2563eb",
+                color: "white",
+              }}
             >
               Send
             </button>
@@ -199,151 +234,14 @@ const sendMessage = async () => {
   );
 }
 
-const styles = {
-  app: {
-    display: "flex",
-    height: "100vh",
-    background: "#0f172a",
-    color: "white",
-    fontFamily: "system-ui",
-  },
-
-  sidebar: {
-    width: 260,
-    background: "#111827",
-    padding: 15,
-    position: "fixed",
-    top: 0,
-    bottom: 0,
-    transition: "left 0.3s ease",
-    overflowY: "auto",
-    zIndex: 1000,
-  },
-
-  newChatBtn: {
-    width: "100%",
-    padding: 12,
-    marginBottom: 15,
-    background: "#2563eb",
-    border: "none",
-    borderRadius: 8,
-    color: "white",
-    cursor: "pointer",
-  },
-
-  chatItem: {
-    padding: 10,
-    background: "#1f2937",
-    borderRadius: 6,
-    marginBottom: 10,
-    cursor: "pointer",
-  },
-
-  main: {
-    flex: 1,
-    display: "flex",
-    flexDirection: "column",
-    height: "100vh",
-  },
-
-  topBar: {
-    height: 50,
-    borderBottom: "1px solid #1f2937",
-    display: "flex",
-    alignItems: "center",
-    paddingLeft: 20,
-  },
-
-  menuBtn: {
-    background: "transparent",
-    border: "none",
-    fontSize: 22,
-    color: "white",
-    cursor: "pointer",
-  },
-
-  chatArea: {
-    flex: 1,
-    overflowY: "auto",
-    display: "flex",
-    justifyContent: "center",
-  },
-
-  chatInner: {
-    width: "100%",
-    maxWidth: 800,
-    padding: "30px 20px",
-    display: "flex",
-    flexDirection: "column",
-  },
-
-  userRow: {
-    display: "flex",
-    justifyContent: "flex-end",
-    marginBottom: 20,
-  },
-
-  botRow: {
-    display: "flex",
-    justifyContent: "flex-start",
-    marginBottom: 20,
-  },
-
-  userBubble: {
-    background: "#2563eb",
-    padding: "12px 16px",
-    borderRadius: 12,
-    maxWidth: "70%",
-  },
-
-  botBubble: {
-    background: "#1f2937",
-    padding: "12px 16px",
-    borderRadius: 12,
-    maxWidth: "70%",
-  },
-
-  inputSection: {
-    borderTop: "1px solid #1f2937",
-    padding: 20,
-    display: "flex",
-    justifyContent: "center",
-  },
-
-  inputWrapper: {
-    display: "flex",
-    width: "100%",
-    maxWidth: 800,
-  },
-
-  input: {
-    flex: 1,
-    padding: 14,
-    borderRadius: 8,
-    border: "none",
-    background: "#1f2937",
-    color: "white",
-  },
-
-  sendBtn: {
-    marginLeft: 10,
-    padding: "14px 20px",
-    borderRadius: 8,
-    border: "none",
-    background: "#2563eb",
-    color: "white",
-    cursor: "pointer",
-  },
-
-  overlay: {
-    position: "fixed",
-    top: 0,
-    bottom: 0,
-    left: 0,
-    right: 0,
-    background: "rgba(0,0,0,0.6)",
-    zIndex: 999,
-  },
+const buttonStyle = {
+  width: "100%",
+  padding: 12,
+  borderRadius: 8,
+  border: "none",
+  background: "#2563eb",
+  color: "white",
+  cursor: "pointer",
 };
 
 export default App;
