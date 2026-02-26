@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from "react";
+kkimport React, { useEffect, useState, useRef } from "react";
 
 const API_URL = "https://ai-backend-xa12.onrender.com/api/ai";
 
@@ -28,44 +28,22 @@ function App() {
         inputBg: "#ffffff",
       };
 
-  /* ===============================
-     AUTO SCROLL
-  =============================== */
+  /* ================= AUTO SCROLL ================= */
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  /* ===============================
-     LOAD SESSIONS ON START
-  =============================== */
+  /* ================= LOAD SESSIONS ONLY ================= */
   useEffect(() => {
-    const loadInitialData = async () => {
+    const loadSessions = async () => {
       const res = await fetch(`${API_URL}/sessions`);
       const data = await res.json();
-
-      if (data.length === 0) {
-        const newRes = await fetch(`${API_URL}/sessions`, {
-          method: "POST",
-        });
-        const newSession = await newRes.json();
-        setSessions([newSession]);
-        setCurrentSessionId(newSession.id);
-        return;
-      }
-
       setSessions(data);
-      setCurrentSessionId(data[0].id);
-
-      const msgRes = await fetch(
-        `${API_URL}/sessions/${data[0].id}`
-      );
-      const msgs = await msgRes.json();
-      setMessages(msgs);
     };
-
-    loadInitialData();
+    loadSessions();
   }, []);
 
+  /* ================= CREATE SESSION ================= */
   const createSession = async () => {
     const res = await fetch(`${API_URL}/sessions`, {
       method: "POST",
@@ -78,6 +56,7 @@ function App() {
     setMessages([]);
   };
 
+  /* ================= LOAD MESSAGES ================= */
   const loadMessages = async (id) => {
     const res = await fetch(`${API_URL}/sessions/${id}`);
     const data = await res.json();
@@ -85,16 +64,33 @@ function App() {
     setMessages(data);
   };
 
+  /* ================= SEND MESSAGE ================= */
   const sendMessage = async () => {
     if (!input.trim() || !currentSessionId) return;
 
-    const userMessage = { role: "user", content: input };
-    setMessages((prev) => [...prev, userMessage]);
+    const userText = input;
     setInput("");
 
+    const userMessage = { role: "user", content: userText };
+    setMessages((prev) => [...prev, userMessage]);
+
+    /* === AUTO RENAME SESSION (first message only) === */
+    if (messages.length === 0) {
+      await fetch(`${API_URL}/sessions/${currentSessionId}/rename`, {
+        method: "PUT",
+        headers: { "Content-Type": "text/plain" },
+        body: userText.slice(0, 30),
+      });
+
+      const res = await fetch(`${API_URL}/sessions`);
+      const updated = await res.json();
+      setSessions(updated);
+    }
+
+    /* === STREAM RESPONSE === */
     const eventSource = new EventSource(
       `${API_URL}/chat/stream/${currentSessionId}?prompt=${encodeURIComponent(
-        input
+        userText
       )}`
     );
 
@@ -123,14 +119,22 @@ function App() {
   };
 
   return (
-    <div style={{ display: "flex", height: "100vh", background: theme.bg, color: theme.text }}>
-
-      {/* SIDEBAR */}
-      <div style={{
-        width: 260,
-        background: theme.sidebar,
-        padding: 20,
-      }}>
+    <div
+      style={{
+        display: "flex",
+        height: "100vh",
+        background: theme.bg,
+        color: theme.text,
+      }}
+    >
+      {/* ================= SIDEBAR ================= */}
+      <div
+        style={{
+          width: 260,
+          background: theme.sidebar,
+          padding: 20,
+        }}
+      >
         <button style={styles.newChat} onClick={createSession}>
           + New Chat
         </button>
@@ -146,13 +150,24 @@ function App() {
                 marginBottom: 6,
                 cursor: "pointer",
                 transition: "0.2s",
+                background:
+                  currentSessionId === s.id
+                    ? darkMode
+                      ? "#1f2937"
+                      : "#d1d5db"
+                    : "transparent",
               }}
               onMouseEnter={(e) =>
                 (e.currentTarget.style.background =
                   darkMode ? "#1f2937" : "#d1d5db")
               }
               onMouseLeave={(e) =>
-                (e.currentTarget.style.background = "transparent")
+                (e.currentTarget.style.background =
+                  currentSessionId === s.id
+                    ? darkMode
+                      ? "#1f2937"
+                      : "#d1d5db"
+                    : "transparent")
               }
             >
               {s.title}
@@ -161,72 +176,71 @@ function App() {
         </div>
       </div>
 
-      {/* MAIN */}
+      {/* ================= MAIN ================= */}
       <div style={{ flex: 1, display: "flex", flexDirection: "column" }}>
-
         {/* HEADER */}
         <div style={styles.header}>
           <h3 style={{ margin: 0 }}>AI SaaS</h3>
-          <button onClick={() => setDarkMode(!darkMode)} style={styles.toggle}>
+          <button
+            onClick={() => setDarkMode(!darkMode)}
+            style={styles.toggle}
+          >
             {darkMode ? "🌞 Light" : "🌙 Dark"}
           </button>
         </div>
 
         {/* CHAT AREA */}
         <div style={styles.chatArea}>
+          {messages.map((msg, index) => {
+            const isUser = msg.role === "user";
 
-{messages.map((msg, index) => {
-  const isUser = msg.role === "user";
+            return (
+              <div
+                key={index}
+                style={{
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: isUser ? "flex-end" : "flex-start",
+                  marginBottom: 24,
+                }}
+              >
+                <span
+                  style={{
+                    fontSize: 12,
+                    opacity: 0.6,
+                    marginBottom: 6,
+                  }}
+                >
+                  {isUser ? "You" : "AI"}
+                </span>
 
-  return (
-    <div
-      key={index}
-      style={{
-        display: "flex",
-        flexDirection: "column",
-        alignItems: isUser ? "flex-end" : "flex-start",
-        marginBottom: 24,
-      }}
-    >
-      {/* Label */}
-      <span
-        style={{
-          fontSize: 12,
-          opacity: 0.6,
-          marginBottom: 6,
-        }}
-      >
-        {isUser ? "You" : "AI"}
-      </span>
+                <div
+                  style={{
+                    maxWidth: "65%",
+                    padding: "14px 18px",
+                    borderRadius: 16,
+                    lineHeight: 1.6,
+                    fontSize: 15,
+                    whiteSpace: "pre-wrap",
+                    background: isUser
+                      ? "#2563eb"
+                      : theme.assistant,
+                    color: isUser ? "white" : theme.text,
+                    boxShadow:
+                      "0 2px 8px rgba(0,0,0,0.15)",
+                  }}
+                >
+                  {msg.content}
 
-      {/* Bubble */}
-      <div
-        style={{
-          maxWidth: "65%",
-          padding: "14px 18px",
-          borderRadius: 16,
-          lineHeight: 1.6,
-          fontSize: 15,
-          whiteSpace: "pre-wrap",
-          background: isUser ? "#2563eb" : theme.assistant,
-          color: isUser ? "white" : theme.text,
-          boxShadow: "0 2px 8px rgba(0,0,0,0.15)",
-        }}
-      >
-        {msg.content}
-
-        {isTyping &&
-          index === messages.length - 1 &&
-          !isUser && (
-            <span className="cursor">▋</span>
-          )}
-      </div>
-    </div>
-  );
-})}
-
-
-
+                  {isTyping &&
+                    index === messages.length - 1 &&
+                    !isUser && (
+                      <span className="cursor">▋</span>
+                    )}
+                </div>
+              </div>
+            );
+          })}
 
           <div ref={bottomRef}></div>
         </div>
@@ -236,7 +250,9 @@ function App() {
           <input
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && sendMessage()}
+            onKeyDown={(e) =>
+              e.key === "Enter" && sendMessage()
+            }
             placeholder="Message..."
             style={{
               flex: 1,
@@ -254,6 +270,7 @@ function App() {
         </div>
       </div>
 
+      {/* CURSOR ANIMATION */}
       <style>{`
         .cursor {
           animation: blink 1s infinite;
@@ -269,6 +286,7 @@ function App() {
   );
 }
 
+/* ================= STYLES ================= */
 const styles = {
   header: {
     padding: "14px 20px",
