@@ -1,4 +1,4 @@
-kkimport React, { useEffect, useState, useRef } from "react";
+import React, { useEffect, useState, useRef } from "react";
 
 const API_URL = "https://ai-backend-xa12.onrender.com/api/ai";
 
