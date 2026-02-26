@@ -4,12 +4,13 @@ function App() {
   const [messages, setMessages] = useState([
     { role: "assistant", content: "How can I help you today?" },
   ]);
+
   const [input, setInput] = useState("");
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
   const [sidebarOpen, setSidebarOpen] = useState(false);
-
   const bottomRef = useRef(null);
 
+  // Detect screen size
   useEffect(() => {
     const handleResize = () =>
       setIsMobile(window.innerWidth < 768);
@@ -17,23 +18,58 @@ function App() {
     return () => window.removeEventListener("resize", handleResize);
   }, []);
 
+  // Auto scroll
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  const sendMessage = () => {
+  // 🔥 REAL BACKEND CALL
+  const sendMessage = async () => {
     if (!input.trim()) return;
+
+    const userMessage = input;
 
     setMessages((prev) => [
       ...prev,
-      { role: "user", content: input },
-      {
-        role: "assistant",
-        content: "This is a demo response. Connect backend here.",
-      },
+      { role: "user", content: userMessage },
     ]);
 
     setInput("");
+
+    try {
+      const response = await fetch(
+        "https://ai-backend-xa12.onrender.com/api/ai/chat",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            prompt: userMessage,
+            sessionId: 1,
+          }),
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error("Server error");
+      }
+
+      const data = await response.text();
+
+      setMessages((prev) => [
+        ...prev,
+        { role: "assistant", content: data },
+      ]);
+    } catch (error) {
+      setMessages((prev) => [
+        ...prev,
+        {
+          role: "assistant",
+          content: "Backend connection failed.",
+        },
+      ]);
+    }
   };
 
   return (
@@ -51,11 +87,16 @@ function App() {
         style={{
           ...styles.sidebar,
           left: isMobile
-            ? sidebarOpen ? 0 : -260
+            ? sidebarOpen
+              ? 0
+              : -260
             : 0,
         }}
       >
-        <button style={styles.newChatBtn}>+ New Chat</button>
+        <button style={styles.newChatBtn}>
+          + New Chat
+        </button>
+
         {Array.from({ length: 8 }).map((_, i) => (
           <div key={i} style={styles.chatItem}>
             New Chat
@@ -70,7 +111,7 @@ function App() {
           marginLeft: isMobile ? 0 : 260,
         }}
       >
-        {/* Top bar */}
+        {/* Top Bar */}
         <div style={styles.topBar}>
           {isMobile && (
             <button
