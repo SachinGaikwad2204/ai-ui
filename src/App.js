@@ -88,7 +88,6 @@ function App() {
     };
   };
 
-  return (
 return (
   <div style={styles.app}>
     
