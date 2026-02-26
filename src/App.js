@@ -24,53 +24,57 @@ function App() {
   }, [messages]);
 
   // 🔥 REAL BACKEND CALL
-  const sendMessage = async () => {
-    if (!input.trim()) return;
+const sendMessage = async () => {
+  if (!input.trim()) return;
 
-    const userMessage = input;
+  const userMessage = input;
+  setInput("");
 
-    setMessages((prev) => [
+  setMessages(prev => [
+    ...prev,
+    { role: "user", content: userMessage }
+  ]);
+
+  try {
+    const response = await fetch(
+      `https://ai-backend-xa12.onrender.com/api/ai/chat/1`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "text/plain",
+        },
+        body: userMessage,
+      }
+    );
+
+    if (!response.ok) {
+      throw new Error("Server error");
+    }
+
+    const data = await response.text();
+
+    setMessages(prev => [
       ...prev,
-      { role: "user", content: userMessage },
+      { role: "assistant", content: data }
     ]);
 
-    setInput("");
+  } catch (error) {
+    setMessages(prev => [
+      ...prev,
+      { role: "assistant", content: "Backend connection failed." }
+    ]);
+  }
+};
 
-    try {
-      const response = await fetch(
-        "https://ai-backend-xa12.onrender.com/api/ai/chat",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            prompt: userMessage,
-            sessionId: 1,
-          }),
-        }
-      );
 
-      if (!response.ok) {
-        throw new Error("Server error");
-      }
 
-      const data = await response.text();
 
-      setMessages((prev) => [
-        ...prev,
-        { role: "assistant", content: data },
-      ]);
-    } catch (error) {
-      setMessages((prev) => [
-        ...prev,
-        {
-          role: "assistant",
-          content: "Backend connection failed.",
-        },
-      ]);
-    }
-  };
+
+
+
+
+
+
 
   return (
     <div style={styles.app}>
