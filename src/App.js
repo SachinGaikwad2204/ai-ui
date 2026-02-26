@@ -108,7 +108,8 @@ function App() {
 
   return (
     <div style={{ display: "flex", height: "100vh", background: theme.bg, color: theme.text }}>
-      
+  
+    
       {/* SIDEBAR */}
       <div style={{ width: 260, background: theme.sidebar, padding: 15 }}>
         <button style={btn} onClick={createSession}>+ New Chat</button>
@@ -119,17 +120,40 @@ function App() {
               
               {editingId === s.id ? (
                 <div>
-                  <input
-                    value={editTitle}
-                    onChange={(e) => setEditTitle(e.target.value)}
-                  />
+
+
+
+<input
+  value={editTitle}
+  onChange={(e) => setEditTitle(e.target.value)}
+  style={{
+    width: "100%",
+    padding: 6,
+    borderRadius: 6,
+    border: darkMode ? "1px solid #334155" : "1px solid #ccc",
+    background: darkMode ? "#1f2937" : "white",
+    color: darkMode ? "white" : "black",
+    outline: "none",
+  }}
+/>
+
+
+
                   <button onClick={() => renameSession(s.id)}>✔</button>
                 </div>
               ) : (
                 <div style={{ display: "flex", justifyContent: "space-between" }}>
-                  <span onClick={() => loadMessages(s.id)} style={{ cursor: "pointer" }}>
-                    {s.title}
-                  </span>
+  
+
+<span
+  onClick={() => loadMessages(s.id)}
+  style={{ cursor: "pointer", color: theme.text }}
+>
+  {s.title}
+</span>
+
+
+
                   <div>
                     <span onClick={() => {
                       setEditingId(s.id);
@@ -159,15 +183,22 @@ function App() {
         <ChatWindow messages={messages} theme={theme} />
 
         {/* INPUT */}
-        <div style={{ padding: 15, borderTop: "1px solid gray" }}>
-          <div style={{ display: "flex" }}>
-            <input
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              placeholder="Message..."
-              style={{ flex: 1, padding: 12 }}
-              onKeyDown={(e) => e.key === "Enter" && sendMessage()}
-            />
+<input
+  value={input}
+  onChange={(e) => setInput(e.target.value)}
+  placeholder="Message..."
+  style={{
+    flex: 1,
+    padding: 12,
+    borderRadius: 8,
+    border: darkMode ? "1px solid #334155" : "1px solid #ccc",
+    background: darkMode ? "#1f2937" : "white",
+    color: darkMode ? "white" : "black",
+    outline: "none"
+  }}
+  onKeyDown={(e) => e.key === "Enter" && sendMessage()}
+/>
+
             <button onClick={sendMessage} style={btn}>Send</button>
           </div>
         </div>
