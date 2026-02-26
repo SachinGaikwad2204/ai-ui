@@ -36,28 +36,41 @@ function App() {
   }, [messages]);
 
   /* ===============================
-     LOAD SESSIONS
+     LOAD SESSIONS ON START
   =============================== */
   useEffect(() => {
-    fetchSessions();
+    const loadInitialData = async () => {
+      const res = await fetch(`${API_URL}/sessions`);
+      const data = await res.json();
+
+      if (data.length === 0) {
+        const newRes = await fetch(`${API_URL}/sessions`, {
+          method: "POST",
+        });
+        const newSession = await newRes.json();
+        setSessions([newSession]);
+        setCurrentSessionId(newSession.id);
+        return;
+      }
+
+      setSessions(data);
+      setCurrentSessionId(data[0].id);
+
+      const msgRes = await fetch(
+        `${API_URL}/sessions/${data[0].id}`
+      );
+      const msgs = await msgRes.json();
+      setMessages(msgs);
+    };
+
+    loadInitialData();
   }, []);
 
-  const fetchSessions = async () => {
-    const res = await fetch(`${API_URL}/sessions`);
-    const data = await res.json();
-
-    if (data.length === 0) {
-      await createSession();
-      return;
-    }
-
-    setSessions(data);
-    setCurrentSessionId(data[0].id);
-    loadMessages(data[0].id);
-  };
-
   const createSession = async () => {
-    const res = await fetch(`${API_URL}/sessions`, { method: "POST" });
+    const res = await fetch(`${API_URL}/sessions`, {
+      method: "POST",
+    });
+
     const newSession = await res.json();
 
     setSessions((prev) => [newSession, ...prev]);
@@ -72,9 +85,6 @@ function App() {
     setMessages(data);
   };
 
-  /* ===============================
-     SEND MESSAGE WITH STREAMING
-  =============================== */
   const sendMessage = async () => {
     if (!input.trim() || !currentSessionId) return;
 
@@ -110,15 +120,6 @@ function App() {
       setIsTyping(false);
       eventSource.close();
     };
-
-    eventSource.onopen = () => {
-      setIsTyping(true);
-    };
-
-    eventSource.addEventListener("end", () => {
-      setIsTyping(false);
-      eventSource.close();
-    });
   };
 
   return (
@@ -129,12 +130,8 @@ function App() {
         width: 260,
         background: theme.sidebar,
         padding: 20,
-        transition: "all 0.3s ease"
       }}>
-        <button
-          style={styles.newChat}
-          onClick={createSession}
-        >
+        <button style={styles.newChat} onClick={createSession}>
           + New Chat
         </button>
 
@@ -279,7 +276,6 @@ const styles = {
     background: "#2563eb",
     color: "white",
     cursor: "pointer",
-    fontWeight: 500,
   },
   newChat: {
     padding: "12px 18px",
