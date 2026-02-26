@@ -89,24 +89,27 @@ function App() {
   };
 
   return (
-    <div style={styles.app}>
-      {/* Overlay (Mobile) */}
-      {sidebarOpen && isMobile && (
-        <div
-          style={styles.overlay}
-          onClick={() => setSidebarOpen(false)}
-        />
-      )}
-
-      {/* Sidebar */}
+return (
+  <div style={styles.app}>
+    
+    {/* Overlay (Mobile only) */}
+    {sidebarOpen && isMobile && (
       <div
-        style={{
-          ...styles.sidebar,
-          transform: sidebarOpen
-            ? "translateX(0)"
-            : "translateX(-100%)",
-        }}
-      >
+        style={styles.overlay}
+        onClick={() => setSidebarOpen(false)}
+      />
+    )}
+
+    {/* Sidebar */}
+    <div
+      style={{
+        ...styles.sidebar,
+        left: sidebarOpen ? 0 : -260,
+      }}
+    >
+      {/* Sidebar Content */}
+
+
         <button style={styles.newBtn} onClick={createSession}>
           + New Chat
         </button>
@@ -159,7 +162,14 @@ function App() {
       </div>
 
       {/* Chat Area */}
-      <div style={styles.chatArea}>
+
+<div
+  style={{
+    ...styles.chatArea,
+    marginLeft: !isMobile && sidebarOpen ? 260 : 0,
+  }}
+>
+
         {/* Header */}
         <div style={styles.header}>
           <button
@@ -243,24 +253,25 @@ const styles = {
     zIndex: 999,
   },
 
-  sidebar: {
-    width: 260,
-    background: "#111827",
-    padding: 15,
-    overflowY: "auto",
-    transition: "transform 0.3s ease",
-    position: "fixed",
-    height: "100%",
-    zIndex: 1000,
-  },
+sidebar: {
+  width: 260,
+  background: "#111827",
+  padding: 15,
+  overflowY: "auto",
+  position: "fixed",
+  top: 0,
+  bottom: 0,
+  transition: "left 0.3s ease",
+  zIndex: 1000,
+},
 
-  chatArea: {
-    flex: 1,
-    display: "flex",
-    flexDirection: "column",
-    marginLeft: 0,
-    width: "100%",
-  },
+chatArea: {
+  flex: 1,
+  display: "flex",
+  flexDirection: "column",
+  transition: "margin-left 0.3s ease",
+  width: "100%",
+},
 
   header: {
     height: 60,
