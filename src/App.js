@@ -174,41 +174,60 @@ function App() {
 
         {/* CHAT AREA */}
         <div style={styles.chatArea}>
-          {messages.map((msg, index) => (
-            <div
-              key={index}
-              style={{
-                display: "flex",
-                justifyContent:
-                  msg.role === "user" ? "flex-end" : "flex-start",
-                marginBottom: 18,
-              }}
-            >
-              <div
-                style={{
-                  maxWidth: "70%",
-                  padding: "14px 18px",
-                  borderRadius: 14,
-                  whiteSpace: "pre-wrap",
-                  lineHeight: 1.6,
-                  fontSize: 15,
-                  background:
-                    msg.role === "user"
-                      ? "#2563eb"
-                      : theme.assistant,
-                  color:
-                    msg.role === "user"
-                      ? "white"
-                      : theme.text,
-                }}
-              >
-                {msg.content}
-                {isTyping && index === messages.length - 1 && msg.role === "assistant" && (
-                  <span className="cursor">▋</span>
-                )}
-              </div>
-            </div>
-          ))}
+
+{messages.map((msg, index) => {
+  const isUser = msg.role === "user";
+
+  return (
+    <div
+      key={index}
+      style={{
+        display: "flex",
+        flexDirection: "column",
+        alignItems: isUser ? "flex-end" : "flex-start",
+        marginBottom: 24,
+      }}
+    >
+      {/* Label */}
+      <span
+        style={{
+          fontSize: 12,
+          opacity: 0.6,
+          marginBottom: 6,
+        }}
+      >
+        {isUser ? "You" : "AI"}
+      </span>
+
+      {/* Bubble */}
+      <div
+        style={{
+          maxWidth: "65%",
+          padding: "14px 18px",
+          borderRadius: 16,
+          lineHeight: 1.6,
+          fontSize: 15,
+          whiteSpace: "pre-wrap",
+          background: isUser ? "#2563eb" : theme.assistant,
+          color: isUser ? "white" : theme.text,
+          boxShadow: "0 2px 8px rgba(0,0,0,0.15)",
+        }}
+      >
+        {msg.content}
+
+        {isTyping &&
+          index === messages.length - 1 &&
+          !isUser && (
+            <span className="cursor">▋</span>
+          )}
+      </div>
+    </div>
+  );
+})}
+
+
+
+
           <div ref={bottomRef}></div>
         </div>
 
