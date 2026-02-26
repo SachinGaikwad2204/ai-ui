@@ -1,27 +1,20 @@
-import { useState, useEffect, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
+import ReactMarkdown from "react-markdown";
 
-const API = "https://ai-backend-xa12.onrender.com/api/ai";
+const API_BASE = "https://ai-backend-xa12.onrender.com/api/ai";
 
 function App() {
-  const [sessions, setSessions] = useState([]);
-  const [currentSession, setCurrentSession] = useState(null);
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const bottomRef = useRef(null);
 
   useEffect(() => {
-    fetchSessions();
-  }, []);
-
-  useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  const fetchSessions = async () => {
-    const res = await fetch(`${API}/sessions`);
-    const data = await res.json();
-    setSessions(data);
+  const newChat = () => {
+    setMessages([]);
   };
 
   const sendMessage = async () => {
@@ -29,108 +22,167 @@ function App() {
 
     const userMsg = { role: "USER", content: input };
     setMessages((prev) => [...prev, userMsg]);
+    const messageText = input;
+    setInput("");
     setLoading(true);
 
-    const res = await fetch(`${API}/chat`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        prompt: input,
-        sessionId: currentSession,
-      }),
-    });
+    try {
+      const res = await fetch(`${API_BASE}/chat`, {
+        method: "POST",
+        headers: { "Content-Type": "text/plain" },
+        body: messageText,
+      });
 
-    const text = await res.text();
+      const text = await res.text();
+      const aiMsg = { role: "AI", content: text };
 
-    setMessages((prev) => [
-      ...prev,
-      { role: "AI", content: text },
-    ]);
+      setMessages((prev) => [...prev, aiMsg]);
+    } catch (err) {
+      setMessages((prev) => [
+        ...prev,
+        { role: "AI", content: "⚠️ Server error. Please try again." },
+      ]);
+    }
 
-    setInput("");
     setLoading(false);
-    fetchSessions();
   };
 
   return (
-    <div className="flex h-screen bg-gray-900 text-white">
-
-      {/* Sidebar */}
-      <div className="w-64 bg-gray-800 hidden md:flex flex-col p-4">
-        <button
-          onClick={() => {
-            setCurrentSession(null);
-            setMessages([]);
-          }}
-          className="bg-blue-600 p-2 rounded mb-4"
-        >
+    <div style={styles.app}>
+      
+      {/* HEADER */}
+      <div style={styles.header}>
+        <h2 style={{ margin: 0 }}>AI Chat</h2>
+        <button onClick={newChat} style={styles.newChatBtn}>
           + New Chat
         </button>
-
-        <div className="overflow-y-auto flex-1">
-          {sessions.map((s) => (
-            <div
-              key={s.id}
-              onClick={() => setCurrentSession(s.id)}
-              className="p-2 hover:bg-gray-700 rounded cursor-pointer"
-            >
-              {s.title}
-            </div>
-          ))}
-        </div>
       </div>
 
-      {/* Chat Area */}
-      <div className="flex flex-col flex-1">
+      {/* CHAT AREA */}
+      <div style={styles.chatContainer}>
+        {messages.length === 0 && (
+          <div style={styles.emptyState}>
+            <h3>Start a Conversation 🚀</h3>
+            <p>Ask anything to your AI assistant.</p>
+          </div>
+        )}
 
-        {/* Header (Mobile) */}
-        <div className="md:hidden p-3 bg-gray-800 text-center">
-          AI Chat
-        </div>
-
-        {/* Messages */}
-        <div className="flex-1 overflow-y-auto p-4 space-y-4">
-          {messages.map((msg, i) => (
-            <div
-              key={i}
-              className={`max-w-lg p-3 rounded-lg ${
-                msg.role === "USER"
-                  ? "bg-blue-600 ml-auto"
-                  : "bg-gray-700"
-              }`}
-            >
-              {msg.content}
-            </div>
-          ))}
-
-          {loading && (
-            <div className="bg-gray-700 p-3 rounded-lg w-20">
-              ...
-            </div>
-          )}
-
-          <div ref={bottomRef} />
-        </div>
-
-        {/* Input */}
-        <div className="p-4 bg-gray-800 flex gap-2">
-          <input
-            className="flex-1 p-2 rounded bg-gray-700 outline-none"
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            placeholder="Type a message..."
-            onKeyDown={(e) => e.key === "Enter" && sendMessage()}
-          />
-          <button
-            onClick={sendMessage}
-            className="bg-blue-600 px-4 rounded"
+        {messages.map((msg, i) => (
+          <div
+            key={i}
+            style={{
+              ...styles.messageWrapper,
+              justifyContent:
+                msg.role === "USER" ? "flex-end" : "flex-start",
+            }}
           >
-            Send
-          </button>
-        </div>
+            <div
+              style={{
+                ...styles.message,
+                background:
+                  msg.role === "USER" ? "#2563eb" : "#1f2937",
+              }}
+            >
+              <ReactMarkdown>{msg.content}</ReactMarkdown>
+            </div>
+          </div>
+        ))}
+
+        {loading && (
+          <div style={styles.loading}>AI is typing...</div>
+        )}
+
+        <div ref={bottomRef}></div>
+      </div>
+
+      {/* INPUT AREA */}
+      <div style={styles.inputArea}>
+        <input
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+          placeholder="Type your message..."
+          style={styles.input}
+          onKeyDown={(e) => e.key === "Enter" && sendMessage()}
+        />
+        <button onClick={sendMessage} style={styles.sendBtn}>
+          Send
+        </button>
       </div>
     </div>
   );
 }
+
+const styles = {
+  app: {
+    display: "flex",
+    flexDirection: "column",
+    height: "100vh",
+    background: "#0f172a",
+    color: "white",
+    fontFamily: "sans-serif",
+  },
+  header: {
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "center",
+    padding: "15px 25px",
+    background: "#111827",
+    borderBottom: "1px solid #1f2937",
+  },
+  newChatBtn: {
+    padding: "8px 14px",
+    background: "#2563eb",
+    border: "none",
+    borderRadius: 6,
+    color: "white",
+    cursor: "pointer",
+  },
+  chatContainer: {
+    flex: 1,
+    overflowY: "auto",
+    padding: "20px",
+  },
+  messageWrapper: {
+    display: "flex",
+    marginBottom: 15,
+  },
+  message: {
+    padding: 12,
+    borderRadius: 10,
+    maxWidth: "60%",
+    fontSize: 14,
+  },
+  loading: {
+    marginTop: 10,
+    opacity: 0.7,
+  },
+  inputArea: {
+    display: "flex",
+    padding: 15,
+    borderTop: "1px solid #1f2937",
+    background: "#111827",
+  },
+  input: {
+    flex: 1,
+    padding: 12,
+    borderRadius: 6,
+    border: "none",
+    outline: "none",
+  },
+  sendBtn: {
+    marginLeft: 10,
+    padding: "12px 20px",
+    background: "#2563eb",
+    border: "none",
+    borderRadius: 6,
+    color: "white",
+    cursor: "pointer",
+  },
+  emptyState: {
+    textAlign: "center",
+    marginTop: "20%",
+    opacity: 0.6,
+  },
+};
 
 export default App;
