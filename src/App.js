@@ -9,6 +9,7 @@ function App() {
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const bottomRef = useRef(null);
+  const [sessionId, setSessionId] = useState(null);
 
   // Detect screen size
   useEffect(() => {
@@ -24,8 +25,24 @@ function App() {
   }, [messages]);
 
   // 🔥 REAL BACKEND CALL
+const createSession = async () => {
+  const res = await fetch(
+    "https://ai-backend-xa12.onrender.com/api/ai/sessions",
+    { method: "POST" }
+  );
+  const data = await res.json();
+  setSessionId(data.id);
+  return data.id;
+};
+
 const sendMessage = async () => {
   if (!input.trim()) return;
+
+  let currentSessionId = sessionId;
+
+  if (!currentSessionId) {
+    currentSessionId = await createSession();
+  }
 
   const userMessage = input;
   setInput("");
@@ -37,7 +54,7 @@ const sendMessage = async () => {
 
   try {
     const response = await fetch(
-      `https://ai-backend-xa12.onrender.com/api/ai/chat/1`,
+      `https://ai-backend-xa12.onrender.com/api/ai/chat/${currentSessionId}`,
       {
         method: "POST",
         headers: {
@@ -65,7 +82,6 @@ const sendMessage = async () => {
     ]);
   }
 };
-
 
 
 
