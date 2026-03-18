@@ -9,6 +9,7 @@ function App() {
   const [input, setInput] = useState("");
   const [darkMode, setDarkMode] = useState(true);
   const [isTyping, setIsTyping] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   const bottomRef = useRef(null);
 
@@ -33,7 +34,7 @@ function App() {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  /* ================= LOAD SESSIONS ONLY ================= */
+  /* ================= LOAD SESSIONS ================= */
   useEffect(() => {
     const loadSessions = async () => {
       const res = await fetch(`${API_URL}/sessions`);
@@ -54,6 +55,7 @@ function App() {
     setSessions((prev) => [newSession, ...prev]);
     setCurrentSessionId(newSession.id);
     setMessages([]);
+    setSidebarOpen(false); // close on mobile
   };
 
   /* ================= LOAD MESSAGES ================= */
@@ -62,6 +64,7 @@ function App() {
     const data = await res.json();
     setCurrentSessionId(id);
     setMessages(data);
+    setSidebarOpen(false); // close on mobile
   };
 
   /* ================= SEND MESSAGE ================= */
@@ -74,7 +77,6 @@ function App() {
     const userMessage = { role: "user", content: userText };
     setMessages((prev) => [...prev, userMessage]);
 
-    /* === AUTO RENAME SESSION (first message only) === */
     if (messages.length === 0) {
       await fetch(`${API_URL}/sessions/${currentSessionId}/rename`, {
         method: "PUT",
@@ -87,7 +89,6 @@ function App() {
       setSessions(updated);
     }
 
-    /* === STREAM RESPONSE === */
     const eventSource = new EventSource(
       `${API_URL}/chat/stream/${currentSessionId}?prompt=${encodeURIComponent(
         userText
@@ -119,20 +120,33 @@ function App() {
   };
 
   return (
-    <div
-      style={{
-        display: "flex",
-        height: "100vh",
-        background: theme.bg,
-        color: theme.text,
-      }}
-    >
+    <div style={{ display: "flex", height: "100vh", background: theme.bg, color: theme.text }}>
+      
+      {/* ===== OVERLAY (MOBILE) ===== */}
+      {sidebarOpen && (
+        <div
+          onClick={() => setSidebarOpen(false)}
+          style={{
+            position: "fixed",
+            width: "100%",
+            height: "100%",
+            background: "rgba(0,0,0,0.5)",
+            zIndex: 999,
+          }}
+        />
+      )}
+
       {/* ================= SIDEBAR ================= */}
       <div
         style={{
           width: 260,
           background: theme.sidebar,
           padding: 20,
+          position: "fixed",
+          height: "100%",
+          zIndex: 1000,
+          transform: sidebarOpen ? "translateX(0)" : "translateX(-100%)",
+          transition: "0.3s",
         }}
       >
         <button style={styles.newChat} onClick={createSession}>
@@ -149,7 +163,6 @@ function App() {
                 borderRadius: 8,
                 marginBottom: 6,
                 cursor: "pointer",
-                transition: "0.2s",
                 background:
                   currentSessionId === s.id
                     ? darkMode
@@ -157,18 +170,6 @@ function App() {
                       : "#d1d5db"
                     : "transparent",
               }}
-              onMouseEnter={(e) =>
-                (e.currentTarget.style.background =
-                  darkMode ? "#1f2937" : "#d1d5db")
-              }
-              onMouseLeave={(e) =>
-                (e.currentTarget.style.background =
-                  currentSessionId === s.id
-                    ? darkMode
-                      ? "#1f2937"
-                      : "#d1d5db"
-                    : "transparent")
-              }
             >
               {s.title}
             </div>
@@ -177,15 +178,18 @@ function App() {
       </div>
 
       {/* ================= MAIN ================= */}
-      <div style={{ flex: 1, display: "flex", flexDirection: "column" }}>
+      <div style={{ flex: 1, marginLeft: 0, display: "flex", flexDirection: "column", width: "100%" }}>
+        
         {/* HEADER */}
         <div style={styles.header}>
+          <button onClick={() => setSidebarOpen(true)} style={styles.menuBtn}>
+            ☰
+          </button>
+
           <h3 style={{ margin: 0 }}>AI SaaS</h3>
-          <button
-            onClick={() => setDarkMode(!darkMode)}
-            style={styles.toggle}
-          >
-            {darkMode ? "🌞 Light" : "🌙 Dark"}
+
+          <button onClick={() => setDarkMode(!darkMode)} style={styles.toggle}>
+            {darkMode ? "🌞" : "🌙"}
           </button>
         </div>
 
@@ -204,44 +208,28 @@ function App() {
                   marginBottom: 24,
                 }}
               >
-                <span
-                  style={{
-                    fontSize: 12,
-                    opacity: 0.6,
-                    marginBottom: 6,
-                  }}
-                >
+                <span style={{ fontSize: 12, opacity: 0.6 }}>
                   {isUser ? "You" : "AI"}
                 </span>
 
                 <div
                   style={{
-                    maxWidth: "65%",
-                    padding: "14px 18px",
-                    borderRadius: 16,
-                    lineHeight: 1.6,
-                    fontSize: 15,
-                    whiteSpace: "pre-wrap",
-                    background: isUser
-                      ? "#2563eb"
-                      : theme.assistant,
+                    maxWidth: "80%",
+                    padding: "14px",
+                    borderRadius: 12,
+                    background: isUser ? "#2563eb" : theme.assistant,
                     color: isUser ? "white" : theme.text,
-                    boxShadow:
-                      "0 2px 8px rgba(0,0,0,0.15)",
                   }}
                 >
                   {msg.content}
 
-                  {isTyping &&
-                    index === messages.length - 1 &&
-                    !isUser && (
-                      <span className="cursor">▋</span>
-                    )}
+                  {isTyping && index === messages.length - 1 && !isUser && (
+                    <span className="cursor">▋</span>
+                  )}
                 </div>
               </div>
             );
           })}
-
           <div ref={bottomRef}></div>
         </div>
 
@@ -250,18 +238,15 @@ function App() {
           <input
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            onKeyDown={(e) =>
-              e.key === "Enter" && sendMessage()
-            }
+            onKeyDown={(e) => e.key === "Enter" && sendMessage()}
             placeholder="Message..."
             style={{
               flex: 1,
-              padding: 14,
-              borderRadius: 10,
+              padding: 12,
+              borderRadius: 8,
               border: "1px solid #334155",
               background: theme.inputBg,
               color: theme.text,
-              fontSize: 15,
             }}
           />
           <button onClick={sendMessage} style={styles.send}>
@@ -270,11 +255,10 @@ function App() {
         </div>
       </div>
 
-      {/* CURSOR ANIMATION */}
       <style>{`
+        body { margin: 0; overflow-x: hidden; }
         .cursor {
           animation: blink 1s infinite;
-          margin-left: 2px;
         }
         @keyframes blink {
           0% { opacity: 1 }
@@ -289,7 +273,7 @@ function App() {
 /* ================= STYLES ================= */
 const styles = {
   header: {
-    padding: "14px 20px",
+    padding: "10px 15px",
     borderBottom: "1px solid #334155",
     display: "flex",
     justifyContent: "space-between",
@@ -297,36 +281,40 @@ const styles = {
   },
   chatArea: {
     flex: 1,
-    padding: "30px 80px",
+    padding: "20px",
     overflowY: "auto",
   },
   inputArea: {
-    padding: 20,
+    padding: 10,
     display: "flex",
     borderTop: "1px solid #334155",
   },
   send: {
     marginLeft: 10,
-    padding: "14px 22px",
-    borderRadius: 10,
+    padding: "10px 16px",
+    borderRadius: 8,
     border: "none",
     background: "#2563eb",
     color: "white",
-    cursor: "pointer",
   },
   newChat: {
-    padding: "12px 18px",
-    borderRadius: 10,
+    padding: "10px",
+    borderRadius: 8,
     border: "none",
     background: "#2563eb",
     color: "white",
-    cursor: "pointer",
     width: "100%",
   },
   toggle: {
-    padding: "8px 14px",
-    borderRadius: 8,
+    padding: "6px 10px",
+    borderRadius: 6,
     border: "none",
+  },
+  menuBtn: {
+    fontSize: 20,
+    background: "transparent",
+    border: "none",
+    color: "inherit",
     cursor: "pointer",
   },
 };
