@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef } from "react";
 
-const API_URL = "https://ai-backend-xa12.onrender.com/api/ai";
+const API_URL = "https://ai-backend-och2.onrender.com/api/ai";
 
 function App() {
   const [sessions, setSessions] = useState([]);
