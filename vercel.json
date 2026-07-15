@@ -2,7 +2,7 @@
   "rewrites": [
     {
       "source": "/api/(.*)",
-      "destination": "https://ai-backend-xa12.onrender.com/api/$1"
+      "destination": "https://ai-backend-och2.onrender.com/api/$1"
     }
   ]
 }
